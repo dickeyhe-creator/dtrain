@@ -9,36 +9,30 @@
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;padding:1.25rem;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
   .card{border-radius:16px;padding:1.25rem;}
-  .card-cv  {background:#EEEDFE;}
-  .card-goal{background:#E1F5EE;}
-  .card-cps {background:#FAEEDA;}
-  .card-imp {background:#FBEAF0;}
+  .card-cv{background:#EEEDFE;} .card-goal{background:#E1F5EE;} .card-cps{background:#FAEEDA;} .card-imp{background:#FBEAF0;}
   .medal{font-size:30px;line-height:1;margin-bottom:8px;}
   .winner-name{font-size:18px;font-weight:700;line-height:1.2;margin-bottom:2px;}
-  .cv-n  {color:#26215C;} .goal-n{color:#04342C;} .cps-n{color:#412402;} .imp-n{color:#4B1528;}
+  .cv-n{color:#26215C;} .goal-n{color:#04342C;} .cps-n{color:#412402;} .imp-n{color:#4B1528;}
   .winner-stat{font-size:13px;margin-bottom:12px;font-weight:600;}
-  .cv-s  {color:#534AB7;} .goal-s{color:#0F6E56;} .cps-s{color:#854F0B;} .imp-s{color:#993556;}
+  .cv-s{color:#534AB7;} .goal-s{color:#0F6E56;} .cps-s{color:#854F0B;} .imp-s{color:#993556;}
   .divider{height:0.5px;margin-bottom:10px;}
-  .cv-d  {background:#AFA9EC;} .goal-d{background:#5DCAA5;} .cps-d{background:#EF9F27;} .imp-d{background:#ED93B1;}
+  .cv-d{background:#AFA9EC;} .goal-d{background:#5DCAA5;} .cps-d{background:#EF9F27;} .imp-d{background:#ED93B1;}
   .runner{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
   .runner:last-child{margin-bottom:0;}
   .r-rank{font-size:12px;width:14px;flex-shrink:0;}
-  .cv-rn {color:#7F77DD;} .goal-rn{color:#1D9E75;} .cps-rn{color:#BA7517;} .imp-rn{color:#D4537E;}
+  .cv-rn{color:#7F77DD;} .goal-rn{color:#1D9E75;} .cps-rn{color:#BA7517;} .imp-rn{color:#D4537E;}
   .r-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;}
-  .cv-av {background:#CECBF6;color:#3C3489;}
-  .goal-av{background:#9FE1CB;color:#085041;}
-  .cps-av {background:#FAC775;color:#633806;}
-  .imp-av {background:#F4C0D1;color:#72243E;}
+  .cv-av{background:#CECBF6;color:#3C3489;} .goal-av{background:#9FE1CB;color:#085041;} .cps-av{background:#FAC775;color:#633806;} .imp-av{background:#F4C0D1;color:#72243E;}
   .r-info{flex:1;}
   .r-top{display:flex;align-items:center;justify-content:space-between;}
   .r-name{font-size:13px;}
-  .cv-rname {color:#3C3489;} .goal-rname{color:#085041;} .cps-rname{color:#633806;} .imp-rname{color:#72243E;}
+  .cv-rname{color:#3C3489;} .goal-rname{color:#085041;} .cps-rname{color:#633806;} .imp-rname{color:#72243E;}
   .r-stat{font-size:12px;}
-  .cv-rs {color:#534AB7;} .goal-rs{color:#0F6E56;} .cps-rs{color:#854F0B;} .imp-rs{color:#993556;}
+  .cv-rs{color:#534AB7;} .goal-rs{color:#0F6E56;} .cps-rs{color:#854F0B;} .imp-rs{color:#993556;}
   .bar-bg{height:4px;border-radius:2px;overflow:hidden;margin-top:3px;}
-  .cv-bb {background:#CECBF6;} .goal-bb{background:#9FE1CB;} .cps-bb{background:#FAC775;} .imp-bb{background:#F4C0D1;}
+  .cv-bb{background:#CECBF6;} .goal-bb{background:#9FE1CB;} .cps-bb{background:#FAC775;} .imp-bb{background:#F4C0D1;}
   .bar-fill{height:100%;border-radius:2px;}
-  .cv-bf {background:#7F77DD;} .goal-bf{background:#1D9E75;} .cps-bf{background:#EF9F27;} .imp-bf{background:#D4537E;}
+  .cv-bf{background:#7F77DD;} .goal-bf{background:#1D9E75;} .cps-bf{background:#EF9F27;} .imp-bf{background:#D4537E;}
   .goal-sub{font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:4px;color:#0F6E56;margin-top:10px;}
   .goal-sub:first-child{margin-top:0;}
   .loading{text-align:center;padding:3rem;color:#aaa;font-size:14px;}
@@ -48,23 +42,17 @@
 </style>
 </head>
 <body>
-
 <div id="content"><div class="loading">Loading standings...</div></div>
 <button class="refresh-btn" onclick="load()">↻ &nbsp;Refresh</button>
-
 <script>
-const SHEET_ID = "2PACX-1vQgufsGrprHU32Xa3vaIFx3kC7fDF-pEt9B_i2S8OUbtJrvS34gyvD-FLC9NH3aAAptPeczynY7MBrJ";
-const GID_NOW  = "2090932640";
-const GID_PREV = "1948129235";
-
-function csvURL(gid){
-  return `https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${gid}&single=true&output=csv`;
-}
+const SHEET_ID="2PACX-1vQgufsGrprHU32Xa3vaIFx3kC7fDF-pEt9B_i2S8OUbtJrvS34gyvD-FLC9NH3aAAptPeczynY7MBrJ";
+const GID_NOW ="2090932640";
+const GID_PREV="1948129235";
 
 function ini(n){return(n||"?").trim().split(/\s+/).map(w=>w[0]).join("").toUpperCase().slice(0,2);}
-function num(v){return parseFloat((v||"").replace(/[^0-9.\-]/g,""))||0;}
+function num(v){return parseFloat((v||"").toString().replace(/[^0-9.\-]/g,""))||0;}
 function pct(v){
-  const s=(v||"").trim();
+  const s=(v||"").toString().trim();
   const f=parseFloat(s.replace(/[^0-9.\-]/g,""))||0;
   return s.includes("%")?f:(f>1?f:f*100);
 }
@@ -82,37 +70,91 @@ function parseCSV(text){
   });
 }
 
+function findHeaderRow(rows){
+  // Look for a row that has both a rep-like column AND approved/nominal
+  for(let i=0;i<Math.min(20,rows.length);i++){
+    const j=rows[i].join(" ").toLowerCase();
+    if((j.includes("rep")||j.includes("agent"))&&(j.includes("approved")||j.includes("nominal"))){
+      return i;
+    }
+  }
+  return -1;
+}
+
+function findCol(headers,tests){
+  for(const t of tests){
+    const i=headers.findIndex(x=>t(x.toLowerCase().trim()));
+    if(i>=0)return i;
+  }
+  return -1;
+}
+
 function parseSheet(text){
   const rows=parseCSV(text);
-  let hr=-1;
-  for(let i=0;i<Math.min(12,rows.length);i++){
-    const j=rows[i].join(" ").toLowerCase();
-    if((j.includes("rep")||j.includes("agent"))&&(j.includes("nominal")||j.includes("approved"))){hr=i;break;}
-  }
+  const hr=findHeaderRow(rows);
   if(hr<0)return null;
-  const h=rows[hr].map(x=>x.toLowerCase().trim());
 
-  function fc(tests){
-    for(const t of tests){
-      const i=h.findIndex(x=>t(x));
-      if(i>=0)return i;
-    }
-    return -1;
-  }
+  const h=rows[hr];
+  const hl=h.map(x=>x.toLowerCase().trim());
 
-  const repCol =fc([x=>/^rep$/.test(x),x=>/^agent$/.test(x),x=>x.includes("rep"),x=>x.includes("agent")]);
-  const appCol =fc([x=>/^approved$/.test(x),x=>x.includes("approved")&&!x.includes("%")&&!x.includes("point")]);
-  const condCol=fc([x=>/^conditional$/.test(x),x=>x.includes("conditional")]);
-  const pendCol=fc([x=>/^pending$/.test(x),x=>x.includes("pending")&&!x.includes("%")&&!x.includes("point")]);
-  const nomCol =fc([x=>x.includes("nominal")&&!x.includes("point"),x=>x.includes("nominal")]);
-  const pacCol =fc([x=>x.includes("%")&&x.includes("goal")&&x.includes("approved")]);
-  const ppcCol =fc([x=>x.includes("%")&&x.includes("goal")&&x.includes("pending")]);
+  // Find rep column — exact match first, then partial
+  const repCol=findCol(h,[
+    x=>/^rep$/.test(x),
+    x=>/^agent$/.test(x),
+    x=>/^name$/.test(x),
+    x=>x.includes("rep")&&!x.includes("report"),
+    x=>x.includes("agent"),
+  ]);
+
+  // Approved — exact first, avoid "% to goal approved" and "points approved"
+  const appCol=findCol(h,[
+    x=>/^approved$/.test(x),
+    x=>x==="approved",
+    x=>x.includes("approved")&&!x.includes("%")&&!x.includes("point")&&!x.includes("goal"),
+  ]);
+
+  const condCol=findCol(h,[
+    x=>/^conditional$/.test(x),
+    x=>x.includes("conditional")&&!x.includes("%"),
+  ]);
+
+  const pendCol=findCol(h,[
+    x=>/^pending$/.test(x),
+    x=>x.includes("pending")&&!x.includes("%")&&!x.includes("point")&&!x.includes("goal"),
+  ]);
+
+  // Nominal — avoid "points pending", "points approved"
+  const nomCol=findCol(h,[
+    x=>/^#\s*nominal$/.test(x),
+    x=>/^nominal$/.test(x),
+    x=>x.includes("nominal")&&!x.includes("point"),
+    x=>x.includes("nominal"),
+  ]);
+
+  // % to goal approved
+  const pacCol=findCol(h,[
+    x=>x.includes("%")&&x.includes("goal")&&x.includes("approved"),
+    x=>x.includes("to goal approved"),
+    x=>x.includes("goal approved"),
+  ]);
+
+  // % to goal pending
+  const ppcCol=findCol(h,[
+    x=>x.includes("%")&&x.includes("goal")&&x.includes("pending"),
+    x=>x.includes("to goal pending"),
+    x=>x.includes("goal pending"),
+  ]);
+
+  if(repCol<0||nomCol<0)return null;
 
   const data={};
   for(let i=hr+1;i<rows.length;i++){
     const r=rows[i];
     const name=(r[repCol]||"").trim();
-    if(!name||/train|total|team|^d-/i.test(name))continue;
+    if(!name||/^d-train$|^d\.train$|^dtrain$|total|team$/i.test(name))continue;
+    // skip rows where the name cell looks non-human (numbers, blank)
+    if(/^\d/.test(name))continue;
+
     const app =appCol >=0?num(r[appCol]):0;
     const cond=condCol>=0?num(r[condCol]):0;
     const pend=pendCol>=0?num(r[pendCol]):0;
@@ -120,9 +162,22 @@ function parseSheet(text){
     const pA  =pacCol >=0?pct(r[pacCol]):0;
     const pP  =ppcCol >=0?pct(r[ppcCol]):0;
     const ts  =app+cond+pend;
+
     if(nom===0&&ts===0)continue;
-    data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
+    // Merge duplicate names (take max values or accumulate)
+    if(data[name]){
+      data[name].nom=Math.max(data[name].nom,nom);
+      data[name].pctA=Math.max(data[name].pctA,pA);
+      data[name].pctP=Math.max(data[name].pctP,pP);
+      data[name].ts=Math.max(data[name].ts,ts);
+    } else {
+      data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
+    }
   }
+
+  // Recalculate cvps after merge
+  Object.values(data).forEach(d=>{d.cvps=d.ts>0?d.nom/d.ts:0;});
+
   return Object.keys(data).length?data:null;
 }
 
@@ -216,19 +271,21 @@ function render(now,prev){
 async function load(){
   document.getElementById("content").innerHTML='<div class="loading">Loading standings...</div>';
   try{
-    const [r1,r2]=await Promise.allSettled([fetch(csvURL(GID_NOW)),fetch(csvURL(GID_PREV))]);
-    if(r1.status!=="fulfilled"||!r1.value.ok) throw new Error("Could not fetch current period sheet");
+    const [r1,r2]=await Promise.allSettled([
+      fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_NOW}&single=true&output=csv`),
+      fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_PREV}&single=true&output=csv`)
+    ]);
+    if(r1.status!=="fulfilled"||!r1.value.ok)throw new Error("Could not fetch sheet ("+r1.status+")");
     const t1=await r1.value.text();
     const t2=(r2.status==="fulfilled"&&r2.value.ok)?await r2.value.text():null;
     const now=parseSheet(t1);
-    if(!now)throw new Error("Could not read data — check column headers in Points 6.15");
+    if(!now)throw new Error("Could not read data — header row not found in Points 6.15");
     const prev=t2?parseSheet(t2):null;
     render(now,prev);
   }catch(e){
     document.getElementById("content").innerHTML=`<div class="error"><strong>Error:</strong> ${e.message}</div>`;
   }
 }
-
 load();
 </script>
 </body>
