@@ -36,7 +36,7 @@
   .goal-sub{font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:4px;color:#0F6E56;margin-top:10px;}
   .goal-sub:first-child{margin-top:0;}
   .loading{text-align:center;padding:3rem;color:#aaa;font-size:14px;}
-  .error{padding:1rem;font-size:13px;color:#A32D2D;background:#FCEBEB;border-radius:12px;line-height:1.8;}
+  .error{padding:1rem;font-size:13px;color:#A32D2D;background:#FCEBEB;border-radius:12px;line-height:1.8;white-space:pre-wrap;}
   .refresh-btn{display:block;width:100%;margin-top:14px;padding:10px;background:transparent;border:1px solid #eee;border-radius:10px;font-size:13px;color:#aaa;cursor:pointer;}
   .refresh-btn:hover{background:#f9f9f9;}
 </style>
@@ -70,115 +70,74 @@ function parseCSV(text){
   });
 }
 
-function findHeaderRow(rows){
-  // Look for a row that has both a rep-like column AND approved/nominal
-  for(let i=0;i<Math.min(20,rows.length);i++){
-    const j=rows[i].join(" ").toLowerCase();
-    if((j.includes("rep")||j.includes("agent"))&&(j.includes("approved")||j.includes("nominal"))){
-      return i;
-    }
-  }
-  return -1;
-}
-
-function findCol(headers,tests){
-  for(const t of tests){
-    const i=headers.findIndex(x=>t(x.toLowerCase().trim()));
-    if(i>=0)return i;
-  }
-  return -1;
-}
-
 function parseSheet(text){
   const rows=parseCSV(text);
-  const hr=findHeaderRow(rows);
-  if(hr<0)return null;
 
-  const h=rows[hr];
-  const hl=h.map(x=>x.toLowerCase().trim());
+  // Find the header row that contains "Rep" AND "Nominal" AND "Approved"
+  // This handles both layouts (summary-only sheet AND transaction+summary sheet)
+  let hr=-1;
+  for(let i=0;i<rows.length;i++){
+    const cells=rows[i].map(c=>c.toLowerCase().trim());
+    const hasRep=cells.some(c=>c==="rep"||c==="agent");
+    const hasNom=cells.some(c=>c.includes("nominal"));
+    const hasApp=cells.some(c=>c==="approved");
+    if(hasRep&&hasNom&&hasApp){hr=i;break;}
+  }
+  if(hr<0)return {error:"Header row not found. Headers found: "+rows.slice(0,5).map(r=>r.join("|")).join(" / ")};
 
-  // Find rep column — exact match first, then partial
-  const repCol=findCol(h,[
-    x=>/^rep$/.test(x),
-    x=>/^agent$/.test(x),
-    x=>/^name$/.test(x),
-    x=>x.includes("rep")&&!x.includes("report"),
-    x=>x.includes("agent"),
-  ]);
+  const h=rows[hr].map(c=>c.toLowerCase().trim());
 
-  // Approved — exact first, avoid "% to goal approved" and "points approved"
-  const appCol=findCol(h,[
-    x=>/^approved$/.test(x),
-    x=>x==="approved",
-    x=>x.includes("approved")&&!x.includes("%")&&!x.includes("point")&&!x.includes("goal"),
-  ]);
+  // Find each column by exact or partial match
+  const repCol =h.findIndex(c=>c==="rep"||c==="agent");
+  const appCol =h.findIndex(c=>c==="approved");
+  const condCol=h.findIndex(c=>c==="conditional");
+  const pendCol=h.findIndex(c=>c==="pending");
+  // Nominal: prefer "nominal" not containing "point"
+  let nomCol=h.findIndex(c=>c==="nominal");
+  if(nomCol<0)nomCol=h.findIndex(c=>c==="#nominal"||c==="# nominal");
+  if(nomCol<0)nomCol=h.findIndex(c=>c.includes("nominal")&&!c.includes("point"));
+  if(nomCol<0)nomCol=h.findIndex(c=>c.includes("nominal"));
 
-  const condCol=findCol(h,[
-    x=>/^conditional$/.test(x),
-    x=>x.includes("conditional")&&!x.includes("%"),
-  ]);
-
-  const pendCol=findCol(h,[
-    x=>/^pending$/.test(x),
-    x=>x.includes("pending")&&!x.includes("%")&&!x.includes("point")&&!x.includes("goal"),
-  ]);
-
-  // Nominal — avoid "points pending", "points approved"
-  const nomCol=findCol(h,[
-    x=>/^#\s*nominal$/.test(x),
-    x=>/^nominal$/.test(x),
-    x=>x.includes("nominal")&&!x.includes("point"),
-    x=>x.includes("nominal"),
-  ]);
-
-  // % to goal approved
-  const pacCol=findCol(h,[
-    x=>x.includes("%")&&x.includes("goal")&&x.includes("approved"),
-    x=>x.includes("to goal approved"),
-    x=>x.includes("goal approved"),
-  ]);
-
+  // % to goal approved — look for column containing both "goal" and "approved"
+  let pacCol=h.findIndex(c=>c.includes("goal")&&c.includes("approved"));
   // % to goal pending
-  const ppcCol=findCol(h,[
-    x=>x.includes("%")&&x.includes("goal")&&x.includes("pending"),
-    x=>x.includes("to goal pending"),
-    x=>x.includes("goal pending"),
-  ]);
+  let ppcCol=h.findIndex(c=>c.includes("goal")&&c.includes("pending"));
 
-  if(repCol<0||nomCol<0)return null;
+  if(repCol<0||nomCol<0){
+    return {error:`Cols not found. rep:${repCol} nom:${nomCol} app:${appCol}\nHeaders: ${h.join(" | ")}`};
+  }
 
   const data={};
   for(let i=hr+1;i<rows.length;i++){
     const r=rows[i];
     const name=(r[repCol]||"").trim();
-    if(!name||/^d-train$|^d\.train$|^dtrain$|total|team$/i.test(name))continue;
-    // skip rows where the name cell looks non-human (numbers, blank)
+    if(!name)continue;
+    // Skip totals / team rows
+    if(/d-train|dtrain|d\.train|total|^team$/i.test(name))continue;
+    // Skip rows where name starts with a digit (SPID rows)
     if(/^\d/.test(name))continue;
 
     const app =appCol >=0?num(r[appCol]):0;
     const cond=condCol>=0?num(r[condCol]):0;
     const pend=pendCol>=0?num(r[pendCol]):0;
-    const nom =nomCol >=0?num(r[nomCol]):0;
-    const pA  =pacCol >=0?pct(r[pacCol]):0;
-    const pP  =ppcCol >=0?pct(r[ppcCol]):0;
+    const nom =num(r[nomCol]);
+    const pA  =pacCol>=0?pct(r[pacCol]):0;
+    const pP  =ppcCol>=0?pct(r[ppcCol]):0;
     const ts  =app+cond+pend;
 
     if(nom===0&&ts===0)continue;
-    // Merge duplicate names (take max values or accumulate)
+
+    // If same rep appears twice keep the one with higher nom (summary row wins)
     if(data[name]){
-      data[name].nom=Math.max(data[name].nom,nom);
-      data[name].pctA=Math.max(data[name].pctA,pA);
-      data[name].pctP=Math.max(data[name].pctP,pP);
-      data[name].ts=Math.max(data[name].ts,ts);
+      if(nom>data[name].nom){
+        data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
+      }
     } else {
       data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
     }
   }
 
-  // Recalculate cvps after merge
-  Object.values(data).forEach(d=>{d.cvps=d.ts>0?d.nom/d.ts:0;});
-
-  return Object.keys(data).length?data:null;
+  return Object.keys(data).length?data:{error:"No rep data found after header row "+hr};
 }
 
 function card(cls,medal,name,stat,runners,ck){
@@ -275,12 +234,13 @@ async function load(){
       fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_NOW}&single=true&output=csv`),
       fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_PREV}&single=true&output=csv`)
     ]);
-    if(r1.status!=="fulfilled"||!r1.value.ok)throw new Error("Could not fetch sheet ("+r1.status+")");
+    if(r1.status!=="fulfilled"||!r1.value.ok)throw new Error("Could not fetch sheet");
     const t1=await r1.value.text();
     const t2=(r2.status==="fulfilled"&&r2.value.ok)?await r2.value.text():null;
     const now=parseSheet(t1);
-    if(!now)throw new Error("Could not read data — header row not found in Points 6.15");
-    const prev=t2?parseSheet(t2):null;
+    if(now.error)throw new Error(now.error);
+    const prevRaw=t2?parseSheet(t2):null;
+    const prev=prevRaw&&!prevRaw.error?prevRaw:null;
     render(now,prev);
   }catch(e){
     document.getElementById("content").innerHTML=`<div class="error"><strong>Error:</strong> ${e.message}</div>`;
