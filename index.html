@@ -50,11 +50,13 @@ const GID_NOW ="2090932640";
 const GID_PREV="1948129235";
 
 function ini(n){return(n||"?").trim().split(/\s+/).map(w=>w[0]).join("").toUpperCase().slice(0,2);}
-function num(v){return parseFloat((v||"").toString().replace(/[^0-9.\-]/g,""))||0;}
-function pct(v){
-  const s=(v||"").toString().trim();
-  const f=parseFloat(s.replace(/[^0-9.\-]/g,""))||0;
-  return s.includes("%")?f:(f>1?f:f*100);
+function safeNum(v){try{return parseFloat((v||"").toString().replace(/[^0-9.\-]/g,""))||0;}catch(e){return 0;}}
+function safePct(v){
+  try{
+    const s=(v||"").toString().trim();
+    const f=parseFloat(s.replace(/[^0-9.\-]/g,""))||0;
+    return s.includes("%")?f:(f>1?f:f*100);
+  }catch(e){return 0;}
 }
 
 function parseCSV(text){
@@ -72,82 +74,58 @@ function parseCSV(text){
 
 function parseSheet(text){
   const rows=parseCSV(text);
-
-  // Find the header row that contains "Rep" AND "Nominal" AND "Approved"
-  // This handles both layouts (summary-only sheet AND transaction+summary sheet)
   let hr=-1;
   for(let i=0;i<rows.length;i++){
-    const cells=rows[i].map(c=>c.toLowerCase().trim());
-    const hasRep=cells.some(c=>c==="rep"||c==="agent");
-    const hasNom=cells.some(c=>c.includes("nominal"));
-    const hasApp=cells.some(c=>c==="approved");
-    if(hasRep&&hasNom&&hasApp){hr=i;break;}
+    const cells=rows[i].map(c=>(c||"").toLowerCase().trim());
+    if(cells.some(c=>c==="rep"||c==="agent") && cells.some(c=>c==="approved") && cells.some(c=>c.includes("nominal"))){
+      hr=i; break;
+    }
   }
-  if(hr<0)return {error:"Header row not found. Headers found: "+rows.slice(0,5).map(r=>r.join("|")).join(" / ")};
+  if(hr<0) return {error:"Could not find header row with Rep + Approved + Nominal columns"};
 
-  const h=rows[hr].map(c=>c.toLowerCase().trim());
+  const h=rows[hr].map(c=>(c||"").toLowerCase().trim());
+  const fi=(tests)=>{for(const t of tests){const i=h.findIndex(t);if(i>=0)return i;}return -1;};
 
-  // Find each column by exact or partial match
-  const repCol =h.findIndex(c=>c==="rep"||c==="agent");
-  const appCol =h.findIndex(c=>c==="approved");
-  const condCol=h.findIndex(c=>c==="conditional");
-  const pendCol=h.findIndex(c=>c==="pending");
-  // Nominal: prefer "nominal" not containing "point"
-  let nomCol=h.findIndex(c=>c==="nominal");
-  if(nomCol<0)nomCol=h.findIndex(c=>c==="#nominal"||c==="# nominal");
-  if(nomCol<0)nomCol=h.findIndex(c=>c.includes("nominal")&&!c.includes("point"));
-  if(nomCol<0)nomCol=h.findIndex(c=>c.includes("nominal"));
-
-  // % to goal approved — look for column containing both "goal" and "approved"
-  let pacCol=h.findIndex(c=>c.includes("goal")&&c.includes("approved"));
-  // % to goal pending
-  let ppcCol=h.findIndex(c=>c.includes("goal")&&c.includes("pending"));
-
-  if(repCol<0||nomCol<0){
-    return {error:`Cols not found. rep:${repCol} nom:${nomCol} app:${appCol}\nHeaders: ${h.join(" | ")}`};
-  }
+  const repCol =fi([c=>c==="rep", c=>c==="agent", c=>c.includes("rep")]);
+  const appCol =fi([c=>c==="approved"]);
+  const condCol=fi([c=>c==="conditional"]);
+  const pendCol=fi([c=>c==="pending"]);
+  const nomCol =fi([c=>c==="nominal", c=>c==="#nominal", c=>c==="# nominal", c=>c.includes("nominal")&&!c.includes("point")]);
+  const pacCol =fi([c=>c.includes("goal")&&c.includes("approved")]);
+  const ppcCol =fi([c=>c.includes("goal")&&c.includes("pending")]);
 
   const data={};
   for(let i=hr+1;i<rows.length;i++){
-    const r=rows[i];
-    const name=(r[repCol]||"").trim();
-    if(!name)continue;
-    // Skip totals / team rows
-    if(/d-train|dtrain|d\.train|total|^team$/i.test(name))continue;
-    // Skip rows where name starts with a digit (SPID rows)
-    if(/^\d/.test(name))continue;
-
-    const app =appCol >=0?num(r[appCol]):0;
-    const cond=condCol>=0?num(r[condCol]):0;
-    const pend=pendCol>=0?num(r[pendCol]):0;
-    const nom =num(r[nomCol]);
-    const pA  =pacCol>=0?pct(r[pacCol]):0;
-    const pP  =ppcCol>=0?pct(r[ppcCol]):0;
-    const ts  =app+cond+pend;
-
-    if(nom===0&&ts===0)continue;
-
-    // If same rep appears twice keep the one with higher nom (summary row wins)
-    if(data[name]){
-      if(nom>data[name].nom){
+    try{
+      const r=rows[i];
+      const name=(r[repCol]||"").trim();
+      if(!name || /d-train|dtrain|total|^team$/i.test(name) || /^\d/.test(name)) continue;
+      const app =safeNum(r[appCol]);
+      const cond=condCol>=0?safeNum(r[condCol]):0;
+      const pend=pendCol>=0?safeNum(r[pendCol]):0;
+      const nom =safeNum(r[nomCol]);
+      const pA  =pacCol>=0?safePct(r[pacCol]):0;
+      const pP  =ppcCol>=0?safePct(r[ppcCol]):0;
+      const ts  =app+cond+pend;
+      if(nom===0&&ts===0) continue;
+      if(!data[name]||nom>data[name].nom){
         data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
       }
-    } else {
-      data[name]={name,nom,pctA:pA,pctP:pP,ts,cvps:ts>0?nom/ts:0};
-    }
+    }catch(e){}
   }
-
-  return Object.keys(data).length?data:{error:"No rep data found after header row "+hr};
+  return Object.keys(data).length ? data : {error:"No rep rows found. repCol="+repCol+" nomCol="+nomCol+" headers="+h.slice(0,15).join("|")};
 }
 
-function card(cls,medal,name,stat,runners,ck){
-  const mx=runners.length?runners[0].val:1;
+function makeCard(cls,medal,name,stat,runners,ck){
+  if(!name||!stat) return "";
+  const mx=runners.length&&runners[0]?runners[0].val:1;
   let h=`<div class="card ${cls}">
     <div class="medal">${medal}</div>
     <div class="winner-name ${ck}-n">${name}</div>
     <div class="winner-stat ${ck}-s">${stat}</div>
     <div class="divider ${ck}-d"></div>`;
-  runners.slice(0,3).forEach((r,i)=>{
+  (runners||[]).slice(0,3).forEach((r,i)=>{
+    if(!r||!r.name) return;
     const pw=Math.max(4,Math.round((r.val/mx)*100));
     h+=`<div class="runner">
       <div class="r-rank ${ck}-rn">${i+2}</div>
@@ -155,7 +133,7 @@ function card(cls,medal,name,stat,runners,ck){
       <div class="r-info">
         <div class="r-top">
           <span class="r-name ${ck}-rname">${r.name}</span>
-          <span class="r-stat ${ck}-rs">${r.stat}</span>
+          <span class="r-stat ${ck}-rs">${r.stat||""}</span>
         </div>
         <div class="bar-bg ${ck}-bb"><div class="bar-fill ${ck}-bf" style="width:${pw}%"></div></div>
       </div>
@@ -165,7 +143,7 @@ function card(cls,medal,name,stat,runners,ck){
 }
 
 function render(now,prev){
-  const arr=Object.values(now);
+  const arr=Object.values(now).filter(d=>d&&d.name);
   const byCv   =[...arr].filter(d=>d.nom>0).sort((a,b)=>b.nom-a.nom);
   const byGoalA=[...arr].filter(d=>d.pctA>0).sort((a,b)=>b.pctA-a.pctA);
   const byGoalP=[...arr].filter(d=>d.pctP>0).sort((a,b)=>b.pctP-a.pctP);
@@ -173,56 +151,70 @@ function render(now,prev){
 
   let html=`<div class="grid">`;
 
-  if(byCv.length&&byCv[0])
-    html+=card("card-cv","🏆",byCv[0].name,`$${Math.round(byCv[0].nom).toLocaleString()}`,
-      byCv.slice(1).map(d=>({name:d.name,val:d.nom,stat:`$${Math.round(d.nom).toLocaleString()}`})),"cv");
+  // Most CV
+  try{
+    if(byCv.length){
+      html+=makeCard("card-cv","🏆",byCv[0].name,
+        "$"+Math.round(byCv[0].nom).toLocaleString(),
+        byCv.slice(1).map(d=>({name:d.name,val:d.nom,stat:"$"+Math.round(d.nom).toLocaleString()})),
+        "cv");
+    }
+  }catch(e){html+=`<div class="card card-cv"><div class="medal">🏆</div><div class="winner-name cv-n">Error: ${e.message}</div></div>`;}
 
-  if(byGoalA.length||byGoalP.length){
-    html+=`<div class="card card-goal">`;
-    [[byGoalA,"🎯","Approved"],[byGoalP,"⏳","Pending"]].forEach(([a,em,label],li)=>{
-      if(!a||!a.length)return;
-      const top=a[0];if(!top)return;
-      html+=`<div class="goal-sub">${label}</div>
-        <div class="medal" style="font-size:22px;margin-bottom:4px;">${em}</div>
-        <div class="winner-name goal-n" style="font-size:16px;">${top.name}</div>
-        <div class="winner-stat goal-s" style="margin-bottom:8px;">${top.val.toFixed(1)}%</div>`;
-      if(li===0){
-        html+=`<div class="divider goal-d" style="margin-bottom:8px;"></div>`;
-        a.slice(1,3).forEach((r,i)=>{
-          const pw=Math.max(4,Math.round((r.val/a[0].val)*100));
-          html+=`<div class="runner">
-            <div class="r-rank goal-rn">${i+2}</div>
-            <div class="r-av goal-av">${ini(r.name)}</div>
-            <div class="r-info">
-              <div class="r-top"><span class="r-name goal-rname">${r.name}</span><span class="r-stat goal-rs">${r.val.toFixed(1)}%</span></div>
-              <div class="bar-bg goal-bb"><div class="bar-fill goal-bf" style="width:${pw}%"></div></div>
-            </div>
-          </div>`;
+  // % to Goal
+  try{
+    if(byGoalA.length||byGoalP.length){
+      html+=`<div class="card card-goal">`;
+      if(byGoalA.length){
+        const top=byGoalA[0];
+        html+=`<div class="goal-sub">Approved</div>
+          <div class="medal" style="font-size:22px;margin-bottom:4px;">🎯</div>
+          <div class="winner-name goal-n" style="font-size:16px;">${top.name}</div>
+          <div class="winner-stat goal-s" style="margin-bottom:8px;">${top.pctA.toFixed(1)}%</div>
+          <div class="divider goal-d" style="margin-bottom:8px;"></div>`;
+        byGoalA.slice(1,3).forEach((r,i)=>{
+          const pw=Math.max(4,Math.round((r.pctA/byGoalA[0].pctA)*100));
+          html+=`<div class="runner"><div class="r-rank goal-rn">${i+2}</div><div class="r-av goal-av">${ini(r.name)}</div><div class="r-info"><div class="r-top"><span class="r-name goal-rname">${r.name}</span><span class="r-stat goal-rs">${r.pctA.toFixed(1)}%</span></div><div class="bar-bg goal-bb"><div class="bar-fill goal-bf" style="width:${pw}%"></div></div></div></div>`;
         });
       }
-    });
-    html+=`</div>`;
-  } else if(byGoalA.length||byGoalP.length){
-    const a=byGoalA.length?byGoalA:byGoalP;
-    html+=card("card-goal","🎯",a[0].name,`${a[0].val.toFixed(1)}%`,
-      a.slice(1).map(d=>({name:d.name,val:d.pctA||d.pctP,stat:`${(d.pctA||d.pctP).toFixed(1)}%`})),"goal");
-  }
+      if(byGoalP.length){
+        const top=byGoalP[0];
+        html+=`<div class="goal-sub" style="margin-top:${byGoalA.length?'12px':'0'}">Pending</div>
+          <div class="medal" style="font-size:22px;margin-bottom:4px;">⏳</div>
+          <div class="winner-name goal-n" style="font-size:16px;">${top.name}</div>
+          <div class="winner-stat goal-s">${top.pctP.toFixed(1)}%</div>`;
+      }
+      html+=`</div>`;
+    }
+  }catch(e){html+=`<div class="card card-goal"><div class="medal">🎯</div><div class="winner-name goal-n">Error: ${e.message}</div></div>`;}
 
-  if(byCps.length&&byCps[0])
-    html+=card("card-cps","💰",byCps[0].name,`$${Math.round(byCps[0].cvps)} / sale`,
-      byCps.slice(1).map(d=>({name:d.name,val:d.cvps,stat:`$${Math.round(d.cvps)}`})),"cps");
+  // CV per Sale
+  try{
+    if(byCps.length){
+      html+=makeCard("card-cps","💰",byCps[0].name,
+        "$"+Math.round(byCps[0].cvps)+" / sale",
+        byCps.slice(1).map(d=>({name:d.name,val:d.cvps,stat:"$"+Math.round(d.cvps)})),
+        "cps");
+    }
+  }catch(e){html+=`<div class="card card-cps"><div class="medal">💰</div><div class="winner-name cps-n">Error: ${e.message}</div></div>`;}
 
-  if(prev){
-    const diffs=arr.map(n=>{
-      const p=prev[n.name];
-      if(!p||p.nom<=0)return null;
-      const delta=((n.nom-p.nom)/p.nom)*100;
-      return{name:n.name,delta,val:Math.max(0,delta)};
-    }).filter(Boolean).sort((a,b)=>b.delta-a.delta);
-    if(diffs.length)
-      html+=card("card-imp","📈",diffs[0].name,`+${diffs[0].delta.toFixed(1)}% vs last period`,
-        diffs.slice(1).map(d=>({name:d.name,val:Math.max(0,d.delta),stat:d.delta>=0?`+${d.delta.toFixed(1)}%`:`${d.delta.toFixed(1)}%`})),"imp");
-  }
+  // Most Improved
+  try{
+    if(prev){
+      const diffs=arr.map(n=>{
+        const p=prev[n.name];
+        if(!p||p.nom<=0) return null;
+        const delta=((n.nom-p.nom)/p.nom)*100;
+        return{name:n.name,delta,val:Math.max(0,delta)};
+      }).filter(Boolean).sort((a,b)=>b.delta-a.delta);
+      if(diffs.length){
+        html+=makeCard("card-imp","📈",diffs[0].name,
+          "+"+diffs[0].delta.toFixed(1)+"% vs last period",
+          diffs.slice(1).map(d=>({name:d.name,val:Math.max(0,d.delta),stat:(d.delta>=0?"+":"")+d.delta.toFixed(1)+"%"})),
+          "imp");
+      }
+    }
+  }catch(e){}
 
   html+=`</div>`;
   document.getElementById("content").innerHTML=html;
@@ -232,17 +224,16 @@ async function load(){
   document.getElementById("content").innerHTML='<div class="loading">Loading standings...</div>';
   try{
     const [r1,r2]=await Promise.allSettled([
-      fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_NOW}&single=true&output=csv`),
-      fetch(`https://docs.google.com/spreadsheets/d/e/${SHEET_ID}/pub?gid=${GID_PREV}&single=true&output=csv`)
+      fetch("https://docs.google.com/spreadsheets/d/e/"+SHEET_ID+"/pub?gid="+GID_NOW+"&single=true&output=csv"),
+      fetch("https://docs.google.com/spreadsheets/d/e/"+SHEET_ID+"/pub?gid="+GID_PREV+"&single=true&output=csv")
     ]);
-    if(r1.status!=="fulfilled"||!r1.value.ok)throw new Error("Could not fetch sheet");
+    if(r1.status!=="fulfilled"||!r1.value.ok) throw new Error("Could not fetch sheet (network error)");
     const t1=await r1.value.text();
     const t2=(r2.status==="fulfilled"&&r2.value.ok)?await r2.value.text():null;
     const now=parseSheet(t1);
-    if(now.error)throw new Error(now.error);
+    if(now.error) throw new Error(now.error);
     const prevRaw=t2?parseSheet(t2):null;
-    const prev=prevRaw&&!prevRaw.error?prevRaw:null;
-    render(now,prev);
+    render(now, prevRaw&&!prevRaw.error?prevRaw:null);
   }catch(e){
     document.getElementById("content").innerHTML=`<div class="error"><strong>Error:</strong> ${e.message}</div>`;
   }
