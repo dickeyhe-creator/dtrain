@@ -173,13 +173,14 @@ function render(now,prev){
 
   let html=`<div class="grid">`;
 
-  if(byCv.length)
+  if(byCv.length&&byCv[0])
     html+=card("card-cv","🏆",byCv[0].name,`$${Math.round(byCv[0].nom).toLocaleString()}`,
       byCv.slice(1).map(d=>({name:d.name,val:d.nom,stat:`$${Math.round(d.nom).toLocaleString()}`})),"cv");
 
-  if(byGoalA.length&&byGoalP.length){
+  if(byGoalA.length||byGoalP.length){
     html+=`<div class="card card-goal">`;
     [[byGoalA,"🎯","Approved"],[byGoalP,"⏳","Pending"]].forEach(([a,em,label],li)=>{
+      if(!a||!a.length)return;
       const top=a[0];if(!top)return;
       html+=`<div class="goal-sub">${label}</div>
         <div class="medal" style="font-size:22px;margin-bottom:4px;">${em}</div>
@@ -207,7 +208,7 @@ function render(now,prev){
       a.slice(1).map(d=>({name:d.name,val:d.pctA||d.pctP,stat:`${(d.pctA||d.pctP).toFixed(1)}%`})),"goal");
   }
 
-  if(byCps.length)
+  if(byCps.length&&byCps[0])
     html+=card("card-cps","💰",byCps[0].name,`$${Math.round(byCps[0].cvps)} / sale`,
       byCps.slice(1).map(d=>({name:d.name,val:d.cvps,stat:`$${Math.round(d.cvps)}`})),"cps");
 
